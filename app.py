@@ -1,26 +1,48 @@
+import hashlib
+import hmac
+import os
+import secrets
+
 from flask import Flask, render_template, request, redirect, session
 
 app = Flask(__name__)
-app.secret_key = "dev-key-2025"
+app.secret_key = os.environ.get("FLASK_SECRET_KEY") or secrets.token_hex(32)
+
+SALT = secrets.token_bytes(16)
+USER_CREDENTIALS = {
+    "admin": {
+        "hash": hashlib.pbkdf2_hmac("sha256", b"admin123", SALT, 600000),
+    },
+    "alice": {
+        "hash": hashlib.pbkdf2_hmac("sha256", b"alice2025", SALT, 600000),
+    },
+}
 
 USERS = {
     "admin": {
         "username": "admin",
-        "password": "admin123",
         "role": "admin",
         "email": "admin@example.com",
         "phone": "13800138000",
-        "balance": 99999
+        "balance": 99999,
     },
     "alice": {
         "username": "alice",
-        "password": "alice2025",
         "role": "user",
         "email": "alice@example.com",
         "phone": "13900139001",
-        "balance": 100
-    }
+        "balance": 100,
+    },
 }
+
+
+def verify_password(username: str, password: str) -> bool:
+    cred = USER_CREDENTIALS.get(username)
+    if cred is None:
+        return False
+    target = cred["hash"]
+    candidate = hashlib.pbkdf2_hmac("sha256", password.encode(), SALT, 600000)
+    return hmac.compare_digest(target, candidate)
 
 
 @app.route("/")
@@ -37,7 +59,7 @@ def login():
     if request.method == "POST":
         username = request.form.get("username")
         password = request.form.get("password")
-        if username in USERS and USERS[username]["password"] == password:
+        if verify_password(username, password):
             session["username"] = username
             user_info = USERS[username]
             return render_template("index.html", user=user_info)
