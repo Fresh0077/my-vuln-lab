@@ -2,19 +2,29 @@ import hashlib
 import hmac
 import os
 import secrets
+import time
+from collections import defaultdict
 
 from flask import Flask, render_template, request, redirect, session
 
 app = Flask(__name__)
 app.secret_key = os.environ.get("FLASK_SECRET_KEY") or secrets.token_hex(32)
 
-SALT = secrets.token_bytes(16)
+PASSWORD_SALT = bytes.fromhex(
+    "44b494f56b14b7c6875fcac46655720b"
+)
 USER_CREDENTIALS = {
     "admin": {
-        "hash": hashlib.pbkdf2_hmac("sha256", b"admin123", SALT, 600000),
+        "hash": bytes.fromhex(
+            "c1a75dbea5cc74e9ced64b11f64f4c4a"
+            "d289a9fe2de75bbf4feb5dbe04ee0570"
+        ),
     },
     "alice": {
-        "hash": hashlib.pbkdf2_hmac("sha256", b"alice2025", SALT, 600000),
+        "hash": bytes.fromhex(
+            "79559639701b989f5ece2923a26c84e3"
+            "d91109a08ce4cfcee86cca0b70b5ab6a"
+        ),
     },
 }
 
@@ -35,13 +45,26 @@ USERS = {
     },
 }
 
+LOGIN_ATTEMPTS = defaultdict(list)
+MAX_ATTEMPTS = 5
+LOCKOUT_SECONDS = 300
+
+
+def _clean_attempts(ip: str) -> None:
+    now = time.time()
+    LOGIN_ATTEMPTS[ip][:] = [
+        t for t in LOGIN_ATTEMPTS[ip] if now - t < LOCKOUT_SECONDS
+    ]
+
 
 def verify_password(username: str, password: str) -> bool:
     cred = USER_CREDENTIALS.get(username)
     if cred is None:
         return False
     target = cred["hash"]
-    candidate = hashlib.pbkdf2_hmac("sha256", password.encode(), SALT, 600000)
+    candidate = hashlib.pbkdf2_hmac(
+        "sha256", password.encode(), PASSWORD_SALT, 600000
+    )
     return hmac.compare_digest(target, candidate)
 
 
@@ -59,12 +82,27 @@ def login():
     if request.method == "POST":
         username = request.form.get("username")
         password = request.form.get("password")
+        ip = request.remote_addr
+
+        _clean_attempts(ip)
+        if len(LOGIN_ATTEMPTS[ip]) >= MAX_ATTEMPTS:
+            return render_template(
+                "login.html",
+                error="尝试次数过多，请 5 分钟后再试。",
+            )
+
         if verify_password(username, password):
+            LOGIN_ATTEMPTS.pop(ip, None)
             session["username"] = username
             user_info = USERS[username]
             return render_template("index.html", user=user_info)
         else:
-            return render_template("login.html", error="用户名或密码错误")
+            LOGIN_ATTEMPTS[ip].append(time.time())
+            remaining = max(0, MAX_ATTEMPTS - len(LOGIN_ATTEMPTS[ip]))
+            return render_template(
+                "login.html",
+                error=f"用户名或密码错误（剩余 {remaining} 次尝试）",
+            )
     return render_template("login.html")
 
 
