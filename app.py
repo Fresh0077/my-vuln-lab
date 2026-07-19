@@ -88,7 +88,7 @@ def login():
         if len(LOGIN_ATTEMPTS[ip]) >= MAX_ATTEMPTS:
             return render_template(
                 "login.html",
-                error="尝试次数过多，请 5 分钟后再试。",
+                error="用户名或密码错误",
             )
 
         if verify_password(username, password):
@@ -98,10 +98,9 @@ def login():
             return render_template("index.html", user=user_info)
         else:
             LOGIN_ATTEMPTS[ip].append(time.time())
-            remaining = max(0, MAX_ATTEMPTS - len(LOGIN_ATTEMPTS[ip]))
             return render_template(
                 "login.html",
-                error=f"用户名或密码错误（剩余 {remaining} 次尝试）",
+                error="用户名或密码错误",
             )
     return render_template("login.html")
 
