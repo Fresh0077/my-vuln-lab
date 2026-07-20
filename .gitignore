@@ -4,3 +4,4 @@ __pycache__/
 漏洞修复报告.md
 .env
 *.pyc
+data/

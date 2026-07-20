@@ -170,6 +170,17 @@ body {
     background: #c0392b;
 }
 
+/* 成功提示 */
+.success-msg {
+    background: #efe;
+    color: #27ae60;
+    padding: 12px 16px;
+    border-radius: 6px;
+    margin-bottom: 16px;
+    font-size: 14px;
+    border: 1px solid #c3e6cb;
+}
+
 /* 错误提示 */
 .error-msg {
     background: #fee;

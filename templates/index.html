@@ -13,6 +13,44 @@
         </ul>
         <a href="/logout" class="btn logout-btn">退出登录</a>
     </div>
+
+    <div class="card">
+        <h2>用户搜索</h2>
+        <form method="get" action="/" class="login-form">
+            <div class="form-group">
+                <label for="keyword">搜索关键词</label>
+                <input type="text" id="keyword" name="keyword" placeholder="输入用户名或邮箱关键词" value="{{ search_keyword or '' }}">
+            </div>
+            <button type="submit" class="btn">搜索</button>
+        </form>
+
+        {% if search_keyword %}
+            {% if search_results %}
+                <table style="width:100%; border-collapse:collapse; margin-top:16px;">
+                    <thead>
+                        <tr style="background:#667eea; color:#fff; text-align:left;">
+                            <th style="padding:10px; border:1px solid #ddd;">ID</th>
+                            <th style="padding:10px; border:1px solid #ddd;">用户名</th>
+                            <th style="padding:10px; border:1px solid #ddd;">邮箱</th>
+                            <th style="padding:10px; border:1px solid #ddd;">手机号</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for r in search_results %}
+                        <tr style="background:#fff;">
+                            <td style="padding:10px; border:1px solid #ddd;">{{ r.id }}</td>
+                            <td style="padding:10px; border:1px solid #ddd;">{{ r.username }}</td>
+                            <td style="padding:10px; border:1px solid #ddd;">{{ r.email }}</td>
+                            <td style="padding:10px; border:1px solid #ddd;">{{ r.phone }}</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            {% else %}
+                <p style="margin-top:16px; color:#999;">无搜索结果</p>
+            {% endif %}
+        {% endif %}
+    </div>
 {% else %}
     <div class="card">
         <h2>请先登录</h2>

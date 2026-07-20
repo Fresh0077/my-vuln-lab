@@ -2,10 +2,11 @@ import hashlib
 import hmac
 import os
 import secrets
+import sqlite3
 import time
 from collections import defaultdict
 
-from flask import Flask, render_template, request, redirect, session
+from flask import Flask, render_template, request, redirect, session, url_for
 
 app = Flask(__name__)
 app.secret_key = os.environ.get("FLASK_SECRET_KEY") or secrets.token_hex(32)
@@ -68,13 +69,60 @@ def verify_password(username: str, password: str) -> bool:
     return hmac.compare_digest(target, candidate)
 
 
+def init_db():
+    os.makedirs("data", exist_ok=True)
+    conn = sqlite3.connect("data/users.db")
+    c = conn.cursor()
+    c.execute(
+        "CREATE TABLE IF NOT EXISTS users ("
+        "  id INTEGER PRIMARY KEY AUTOINCREMENT,"
+        "  username TEXT UNIQUE NOT NULL,"
+        "  password TEXT NOT NULL,"
+        "  email TEXT,"
+        "  phone TEXT"
+        ")"
+    )
+    c.execute("INSERT OR IGNORE INTO users (username, password, email, phone) VALUES (?, ?, ?, ?)",
+              ("admin", "admin123", "admin@example.com", "13800138000"))
+    c.execute("INSERT OR IGNORE INTO users (username, password, email, phone) VALUES (?, ?, ?, ?)",
+              ("alice", "alice2025", "alice@example.com", "13900139001"))
+    conn.commit()
+    conn.close()
+
+
 @app.route("/")
 def index():
     username = session.get("username")
     user_info = None
+    search_results = None
+    search_keyword = None
+
     if username and username in USERS:
         user_info = USERS[username]
-    return render_template("index.html", user=user_info)
+
+    keyword = request.args.get("keyword")
+    if keyword:
+        search_keyword = keyword
+        conn = sqlite3.connect("data/users.db")
+        conn.row_factory = sqlite3.Row
+        c = conn.cursor()
+        sql = f"SELECT id, username, email, phone FROM users WHERE username LIKE '%{keyword}%' OR email LIKE '%{keyword}%'"
+        print(f"[SQL] {sql}")
+        try:
+            c.execute(sql)
+            rows = c.fetchall()
+            search_results = [dict(r) for r in rows]
+        except Exception as e:
+            print(f"[SQL ERROR] {e}")
+            search_results = []
+        conn.close()
+
+    return render_template(
+        "index.html",
+        user=user_info,
+        search_results=search_results,
+        search_keyword=search_keyword,
+    )
 
 
 @app.route("/login", methods=["GET", "POST"])
@@ -105,6 +153,36 @@ def login():
     return render_template("login.html")
 
 
+@app.route("/register", methods=["GET", "POST"])
+def register():
+    if request.method == "POST":
+        username = request.form.get("username")
+        password = request.form.get("password")
+        email = request.form.get("email")
+        phone = request.form.get("phone")
+
+        conn = sqlite3.connect("data/users.db")
+        c = conn.cursor()
+        sql = f"INSERT INTO users (username, password, email, phone) VALUES ('{username}', '{password}', '{email}', '{phone}')"
+        print(f"[SQL] {sql}")
+        try:
+            c.execute(sql)
+            conn.commit()
+            conn.close()
+            return redirect(url_for("login", registered="1"))
+        except Exception as e:
+            print(f"[SQL ERROR] {e}")
+            conn.close()
+            return render_template("register.html", error="注册失败，用户名可能已存在。")
+
+    return render_template("register.html")
+
+
+@app.route("/search")
+def search():
+    return redirect(url_for("index"))
+
+
 @app.route("/logout")
 def logout():
     session.pop("username", None)
@@ -112,4 +190,5 @@ def logout():
 
 
 if __name__ == "__main__":
+    init_db()
     app.run(debug=True, host="0.0.0.0", port=5000)
