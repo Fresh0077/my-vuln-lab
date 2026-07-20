@@ -106,10 +106,11 @@ def index():
         conn = sqlite3.connect("data/users.db")
         conn.row_factory = sqlite3.Row
         c = conn.cursor()
-        sql = f"SELECT id, username, email, phone FROM users WHERE username LIKE '%{keyword}%' OR email LIKE '%{keyword}%'"
-        print(f"[SQL] {sql}")
+        sql = "SELECT id, username, email, phone FROM users WHERE username LIKE ? OR email LIKE ?"
+        pattern = f"%{keyword}%"
+        print(f"[SQL] {sql}  params: ({pattern!r})")
         try:
-            c.execute(sql)
+            c.execute(sql, (pattern, pattern))
             rows = c.fetchall()
             search_results = [dict(r) for r in rows]
         except Exception as e:
@@ -163,10 +164,10 @@ def register():
 
         conn = sqlite3.connect("data/users.db")
         c = conn.cursor()
-        sql = f"INSERT INTO users (username, password, email, phone) VALUES ('{username}', '{password}', '{email}', '{phone}')"
-        print(f"[SQL] {sql}")
+        sql = "INSERT INTO users (username, password, email, phone) VALUES (?, ?, ?, ?)"
+        print(f"[SQL] {sql}  params: ({username!r}, {password!r}, {email!r}, {phone!r})")
         try:
-            c.execute(sql)
+            c.execute(sql, (username, password, email, phone))
             conn.commit()
             conn.close()
             return redirect(url_for("login", registered="1"))
