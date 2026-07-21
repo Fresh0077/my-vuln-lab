@@ -10,6 +10,7 @@ from flask import Flask, render_template, request, redirect, session, url_for
 
 app = Flask(__name__)
 app.secret_key = os.environ.get("FLASK_SECRET_KEY") or secrets.token_hex(32)
+app.config["MAX_CONTENT_LENGTH"] = 16 * 1024 * 1024
 
 PASSWORD_SALT = bytes.fromhex(
     "44b494f56b14b7c6875fcac46655720b"
@@ -182,6 +183,27 @@ def register():
 @app.route("/search")
 def search():
     return redirect(url_for("index"))
+
+
+@app.route("/upload", methods=["GET", "POST"])
+def upload():
+    if "username" not in session:
+        return redirect(url_for("login"))
+
+    uploaded_url = None
+    error = None
+
+    if request.method == "POST":
+        f = request.files.get("file")
+        if f and f.filename:
+            os.makedirs("static/uploads", exist_ok=True)
+            save_path = os.path.join("static/uploads", f.filename)
+            f.save(save_path)
+            uploaded_url = url_for("static", filename=f"uploads/{f.filename}")
+        else:
+            error = "请选择一个文件"
+
+    return render_template("upload.html", uploaded_url=uploaded_url, error=error)
 
 
 @app.route("/logout")

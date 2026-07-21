@@ -2,6 +2,9 @@ __pycache__/
 *.pyc
 .claude/
 漏洞修复报告.md
+SQL注入漏洞修复报告.md
 .env
 *.pyc
 data/
+static/uploads/
+sql_test.py

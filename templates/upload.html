@@ -1,0 +1,25 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="card">
+    <h2>上传头像</h2>
+    {% if error %}
+        <div class="error-msg">{{ error }}</div>
+    {% endif %}
+    {% if uploaded_url %}
+        <div class="success-msg">上传成功！</div>
+        <div style="text-align:center; margin:20px 0;">
+            <img src="{{ uploaded_url }}" style="max-width:200px; max-height:200px; border-radius:8px; border:2px solid #ddd;">
+        </div>
+        <p style="text-align:center; word-break:break-all;">
+            <a href="{{ uploaded_url }}" target="_blank">{{ uploaded_url }}</a>
+        </p>
+    {% endif %}
+    <form method="post" action="/upload" enctype="multipart/form-data" class="login-form">
+        <div class="form-group">
+            <label for="file">选择头像图片</label>
+            <input type="file" id="file" name="file" style="width:100%; padding:8px; border:1px solid #ddd; border-radius:6px;">
+        </div>
+        <button type="submit" class="btn">上传</button>
+    </form>
+</div>
+{% endblock %}
