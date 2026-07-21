@@ -6,5 +6,4 @@ SQL注入漏洞修复报告.md
 .env
 *.pyc
 data/
-static/uploads/
 sql_test.py
