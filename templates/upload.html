@@ -15,6 +15,7 @@
         </p>
     {% endif %}
     <form method="post" action="/upload" enctype="multipart/form-data" class="login-form">
+        <input type="hidden" name="csrf_token" value="{{ session.get('upload_csrf', '') }}">
         <div class="form-group">
             <label for="file">选择头像图片</label>
             <input type="file" id="file" name="file" style="width:100%; padding:8px; border:1px solid #ddd; border-radius:6px;">

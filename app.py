@@ -49,6 +49,18 @@ USERS = {
 
 LOGIN_ATTEMPTS = defaultdict(list)
 MAX_ATTEMPTS = 5
+ALLOWED_EXTENSIONS = {"png", "jpg", "jpeg", "gif", "webp", "bmp"}
+MAX_FILE_SIZE = 5 * 1024 * 1024  # 5MB
+UPLOAD_CSRF_TOKEN = None
+
+
+def allowed_file(filename):
+    if not filename or filename.startswith("."):
+        return False
+    if "." not in filename:
+        return False
+    ext = filename.rsplit(".", 1)[1].lower()
+    return ext in ALLOWED_EXTENSIONS
 LOCKOUT_SECONDS = 300
 
 
@@ -190,18 +202,48 @@ def upload():
     if "username" not in session:
         return redirect(url_for("login"))
 
+    # 生成 CSRF Token
+    if request.method == "GET":
+        session["upload_csrf"] = secrets.token_hex(16)
+
     uploaded_url = None
     error = None
 
     if request.method == "POST":
+        # 验证 CSRF Token
+        if request.form.get("csrf_token") != session.get("upload_csrf"):
+            error = "CSRF 验证失败"
+            return render_template("upload.html", uploaded_url=uploaded_url, error=error)
+
         f = request.files.get("file")
-        if f and f.filename:
-            os.makedirs("static/uploads", exist_ok=True)
-            save_path = os.path.join("static/uploads", f.filename)
-            f.save(save_path)
-            uploaded_url = url_for("static", filename=f"uploads/{f.filename}")
-        else:
+        if not f or not f.filename or not f.filename.strip():
             error = "请选择一个文件"
+            return render_template("upload.html", uploaded_url=uploaded_url, error=error)
+
+        # ① 路径遍历防护
+        safe_name = os.path.basename(f.filename.strip())
+
+        # ② 白名单后缀 + 隐藏文件 + 无扩展名 + 双扩展名
+        if not allowed_file(safe_name):
+            error = "不支持的文件类型，仅允许图片（png, jpg, jpeg, gif, webp, bmp）"
+            return render_template("upload.html", uploaded_url=uploaded_url, error=error)
+
+        # ③ 文件大小检查
+        f.seek(0, os.SEEK_END)
+        size = f.tell()
+        f.seek(0)
+        if size > MAX_FILE_SIZE:
+            error = f"文件过大，允许最大 {MAX_FILE_SIZE // 1024 // 1024}MB"
+            return render_template("upload.html", uploaded_url=uploaded_url, error=error)
+
+        # ④ 唯一文件名防覆盖
+        name, ext = safe_name.rsplit(".", 1)
+        unique_name = f"{name}_{session['username']}_{int(time.time())}.{ext}"
+
+        os.makedirs("static/uploads", exist_ok=True)
+        save_path = os.path.join("static/uploads", unique_name)
+        f.save(save_path)
+        uploaded_url = url_for("static", filename=f"uploads/{unique_name}")
 
     return render_template("upload.html", uploaded_url=uploaded_url, error=error)
 
