@@ -2,6 +2,9 @@
 {% block content %}
 <div class="card">
     <h2>个人中心</h2>
+    {% if error %}
+        <div class="error-msg">{{ error }}</div>
+    {% endif %}
     <ul class="user-info-list">
         <li><span class="label">ID：</span>{{ user.id }}</li>
         <li><span class="label">用户名：</span>{{ user.username }}</li>

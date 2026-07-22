@@ -303,18 +303,22 @@ def profile():
         return redirect(url_for("login"))
 
     username = session["username"]
+    user = _get_user(username)
 
+    if user is None:
+        return "用户不存在", 404
+
+    return render_template("profile.html", user=dict(user), error=None)
+
+
+def _get_user(username):
     conn = sqlite3.connect("data/users.db")
     conn.row_factory = sqlite3.Row
     c = conn.cursor()
     c.execute("SELECT id, username, email, phone, balance, role FROM users WHERE username = ?", (username,))
     user = c.fetchone()
     conn.close()
-
-    if user is None:
-        return "用户不存在", 404
-
-    return render_template("profile.html", user=dict(user))
+    return user
 
 
 @app.route("/recharge", methods=["POST"])
@@ -329,13 +333,16 @@ def recharge():
     try:
         amount = int(amount_str)
     except (ValueError, TypeError):
-        return "金额格式无效", 400
+        error = "金额格式无效"
+        return render_template("profile.html", user=_get_user(username), error=error), 400
 
     # 校验金额正负和上限
     if amount <= 0:
-        return "充值金额必须为正数", 400
+        error = "充值金额必须为正数"
+        return render_template("profile.html", user=_get_user(username), error=error), 400
     if amount > 1000000:
-        return "单次充值超出上限", 400
+        error = "单次充值超出上限"
+        return render_template("profile.html", user=_get_user(username), error=error), 400
 
     conn = sqlite3.connect("data/users.db")
     c = conn.cursor()
