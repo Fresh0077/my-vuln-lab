@@ -1,0 +1,26 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="card">
+    <h2>个人中心</h2>
+    <ul class="user-info-list">
+        <li><span class="label">ID：</span>{{ user.id }}</li>
+        <li><span class="label">用户名：</span>{{ user.username }}</li>
+        <li><span class="label">邮箱：</span>{{ user.email }}</li>
+        <li><span class="label">手机：</span>{{ user.phone }}</li>
+        <li><span class="label">角色：</span>{{ user.role }}</li>
+        <li><span class="label">余额：</span>{{ user.balance }}</li>
+    </ul>
+</div>
+
+<div class="card">
+    <h2>充值</h2>
+    <form method="post" action="/recharge" class="login-form">
+        <input type="hidden" name="user_id" value="{{ user.id }}">
+        <div class="form-group">
+            <label for="amount">充值金额</label>
+            <input type="number" id="amount" name="amount" placeholder="请输入充值金额" required>
+        </div>
+        <button type="submit" class="btn">充值</button>
+    </form>
+</div>
+{% endblock %}

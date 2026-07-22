@@ -92,13 +92,26 @@ def init_db():
         "  username TEXT UNIQUE NOT NULL,"
         "  password TEXT NOT NULL,"
         "  email TEXT,"
-        "  phone TEXT"
+        "  phone TEXT,"
+        "  balance INTEGER DEFAULT 0,"
+        "  role TEXT DEFAULT 'user'"
         ")"
     )
-    c.execute("INSERT OR IGNORE INTO users (username, password, email, phone) VALUES (?, ?, ?, ?)",
-              ("admin", "admin123", "admin@example.com", "13800138000"))
-    c.execute("INSERT OR IGNORE INTO users (username, password, email, phone) VALUES (?, ?, ?, ?)",
-              ("alice", "alice2025", "alice@example.com", "13900139001"))
+    c.execute("INSERT OR IGNORE INTO users (username, password, email, phone, balance, role) VALUES (?, ?, ?, ?, ?, ?)",
+              ("admin", "admin123", "admin@example.com", "13800138000", 99999, "admin"))
+    c.execute("INSERT OR IGNORE INTO users (username, password, email, phone, balance, role) VALUES (?, ?, ?, ?, ?, ?)",
+              ("alice", "alice2025", "alice@example.com", "13900139001", 100, "user"))
+
+    # 兼容旧数据库：补充缺失的列
+    try:
+        c.execute("ALTER TABLE users ADD COLUMN balance INTEGER DEFAULT 0")
+    except sqlite3.OperationalError:
+        pass
+    try:
+        c.execute("ALTER TABLE users ADD COLUMN role TEXT DEFAULT 'user'")
+    except sqlite3.OperationalError:
+        pass
+
     conn.commit()
     conn.close()
 
@@ -246,6 +259,57 @@ def upload():
         uploaded_url = url_for("static", filename=f"uploads/{unique_name}")
 
     return render_template("upload.html", uploaded_url=uploaded_url, error=error)
+
+
+@app.route("/profile")
+def profile():
+    if "username" not in session:
+        return redirect(url_for("login"))
+
+    user_id = request.args.get("user_id")
+
+    conn = sqlite3.connect("data/users.db")
+    conn.row_factory = sqlite3.Row
+    c = conn.cursor()
+    c.execute("SELECT id, username, email, phone, balance, role FROM users WHERE id = ?", (user_id,))
+    user = c.fetchone()
+    conn.close()
+
+    if user is None:
+        return "用户不存在", 404
+
+    return render_template("profile.html", user=dict(user))
+
+
+@app.route("/recharge", methods=["POST"])
+def recharge():
+    if "username" not in session:
+        return redirect(url_for("login"))
+
+    user_id = request.form.get("user_id")
+    amount = request.form.get("amount", "0")
+
+    conn = sqlite3.connect("data/users.db")
+    c = conn.cursor()
+    c.execute("SELECT username, balance FROM users WHERE id = ?", (user_id,))
+    row = c.fetchone()
+
+    if row is None:
+        conn.close()
+        return "用户不存在", 404
+
+    username, old_balance = row
+    new_balance = old_balance + int(amount)
+
+    c.execute("UPDATE users SET balance = ? WHERE id = ?", (new_balance, user_id))
+    conn.commit()
+    conn.close()
+
+    # 同步更新内存中的用户数据
+    if username in USERS:
+        USERS[username]["balance"] = new_balance
+
+    return redirect(url_for("profile", user_id=user_id))
 
 
 @app.route("/logout")

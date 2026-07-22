@@ -3,6 +3,7 @@ __pycache__/
 .claude/
 漏洞修复报告.md
 SQL注入漏洞修复报告.md
+文件上传漏洞审计报告.md
 .env
 *.pyc
 data/
