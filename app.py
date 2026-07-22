@@ -12,24 +12,6 @@ app = Flask(__name__)
 app.secret_key = os.environ.get("FLASK_SECRET_KEY") or secrets.token_hex(32)
 app.config["MAX_CONTENT_LENGTH"] = 16 * 1024 * 1024
 
-
-@app.context_processor
-def inject_current_user_id():
-    username = session.get("username")
-    uid = None
-    if username:
-        try:
-            conn = sqlite3.connect("data/users.db")
-            c = conn.cursor()
-            c.execute("SELECT id FROM users WHERE username = ?", (username,))
-            row = c.fetchone()
-            conn.close()
-            if row:
-                uid = row[0]
-        except Exception:
-            pass
-    return dict(current_user_id=uid)
-
 PASSWORD_SALT = bytes.fromhex(
     "44b494f56b14b7c6875fcac46655720b"
 )
@@ -90,14 +72,27 @@ def _clean_attempts(ip: str) -> None:
 
 
 def verify_password(username: str, password: str) -> bool:
+    # 先查内存字典
     cred = USER_CREDENTIALS.get(username)
-    if cred is None:
+    if cred:
+        target = cred["hash"]
+        candidate = hashlib.pbkdf2_hmac("sha256", password.encode(), PASSWORD_SALT, 600000)
+        return hmac.compare_digest(target, candidate)
+
+    # 再查 SQLite（支持注册用户登录）
+    try:
+        conn = sqlite3.connect("data/users.db")
+        c = conn.cursor()
+        c.execute("SELECT password FROM users WHERE username = ?", (username,))
+        row = c.fetchone()
+        conn.close()
+        if row is None:
+            return False
+        target = bytes.fromhex(row[0]) if isinstance(row[0], str) else row[0]
+        candidate = hashlib.pbkdf2_hmac("sha256", password.encode(), PASSWORD_SALT, 600000)
+        return hmac.compare_digest(target, candidate)
+    except Exception:
         return False
-    target = cred["hash"]
-    candidate = hashlib.pbkdf2_hmac(
-        "sha256", password.encode(), PASSWORD_SALT, 600000
-    )
-    return hmac.compare_digest(target, candidate)
 
 
 def init_db():
@@ -116,9 +111,9 @@ def init_db():
         ")"
     )
     c.execute("INSERT OR IGNORE INTO users (username, password, email, phone, balance, role) VALUES (?, ?, ?, ?, ?, ?)",
-              ("admin", "admin123", "admin@example.com", "13800138000", 99999, "admin"))
+              ("admin", "c1a75dbea5cc74e9ced64b11f64f4c4ad289a9fe2de75bbf4feb5dbe04ee0570", "admin@example.com", "13800138000", 99999, "admin"))
     c.execute("INSERT OR IGNORE INTO users (username, password, email, phone, balance, role) VALUES (?, ?, ?, ?, ?, ?)",
-              ("alice", "alice2025", "alice@example.com", "13900139001", 100, "user"))
+              ("alice", "79559639701b989f5ece2923a26c84e3d91109a08ce4cfcee86cca0b70b5ab6a", "alice@example.com", "13900139001", 100, "user"))
 
     # 兼容旧数据库：补充缺失的列
     try:
@@ -143,6 +138,19 @@ def index():
 
     if username and username in USERS:
         user_info = USERS[username]
+    else:
+        # 从 SQLite 获取注册用户信息
+        try:
+            conn = sqlite3.connect("data/users.db")
+            conn.row_factory = sqlite3.Row
+            c = conn.cursor()
+            c.execute("SELECT id, username, email, phone, balance, role FROM users WHERE username = ?", (username,))
+            row = c.fetchone()
+            conn.close()
+            if row:
+                user_info = dict(row)
+        except Exception:
+            pass
 
     keyword = request.args.get("keyword")
     if keyword:
@@ -187,7 +195,16 @@ def login():
         if verify_password(username, password):
             LOGIN_ATTEMPTS.pop(ip, None)
             session["username"] = username
-            user_info = USERS[username]
+            # 从内存或 SQLite 获取用户信息
+            if username in USERS:
+                user_info = USERS[username]
+            else:
+                conn = sqlite3.connect("data/users.db")
+                conn.row_factory = sqlite3.Row
+                c = conn.cursor()
+                c.execute("SELECT id, username, email, phone, balance, role FROM users WHERE username = ?", (username,))
+                user_info = dict(c.fetchone())
+                conn.close()
             return render_template("index.html", user=user_info)
         else:
             LOGIN_ATTEMPTS[ip].append(time.time())
@@ -208,10 +225,11 @@ def register():
 
         conn = sqlite3.connect("data/users.db")
         c = conn.cursor()
+        password_hash = hashlib.pbkdf2_hmac("sha256", password.encode(), PASSWORD_SALT, 600000).hex()
         sql = "INSERT INTO users (username, password, email, phone) VALUES (?, ?, ?, ?)"
-        print(f"[SQL] {sql}  params: ({username!r}, {password!r}, {email!r}, {phone!r})")
+        print(f"[SQL] {sql}  params: ({username!r}, {password_hash!r}, {email!r}, {phone!r})")
         try:
-            c.execute(sql, (username, password, email, phone))
+            c.execute(sql, (username, password_hash, email, phone))
             conn.commit()
             conn.close()
             return redirect(url_for("login", registered="1"))
@@ -284,12 +302,12 @@ def profile():
     if "username" not in session:
         return redirect(url_for("login"))
 
-    user_id = request.args.get("user_id")
+    username = session["username"]
 
     conn = sqlite3.connect("data/users.db")
     conn.row_factory = sqlite3.Row
     c = conn.cursor()
-    c.execute("SELECT id, username, email, phone, balance, role FROM users WHERE id = ?", (user_id,))
+    c.execute("SELECT id, username, email, phone, balance, role FROM users WHERE username = ?", (username,))
     user = c.fetchone()
     conn.close()
 
@@ -304,22 +322,34 @@ def recharge():
     if "username" not in session:
         return redirect(url_for("login"))
 
-    user_id = request.form.get("user_id")
-    amount = request.form.get("amount", "0")
+    username = session["username"]
+    amount_str = request.form.get("amount", "0")
+
+    # 校验金额格式
+    try:
+        amount = int(amount_str)
+    except (ValueError, TypeError):
+        return "金额格式无效", 400
+
+    # 校验金额正负和上限
+    if amount <= 0:
+        return "充值金额必须为正数", 400
+    if amount > 1000000:
+        return "单次充值超出上限", 400
 
     conn = sqlite3.connect("data/users.db")
     c = conn.cursor()
-    c.execute("SELECT username, balance FROM users WHERE id = ?", (user_id,))
+    c.execute("SELECT balance FROM users WHERE username = ?", (username,))
     row = c.fetchone()
 
     if row is None:
         conn.close()
         return "用户不存在", 404
 
-    username, old_balance = row
-    new_balance = old_balance + int(amount)
+    old_balance = row[0]
+    new_balance = old_balance + amount
 
-    c.execute("UPDATE users SET balance = ? WHERE id = ?", (new_balance, user_id))
+    c.execute("UPDATE users SET balance = ? WHERE username = ?", (new_balance, username))
     conn.commit()
     conn.close()
 
@@ -327,7 +357,7 @@ def recharge():
     if username in USERS:
         USERS[username]["balance"] = new_balance
 
-    return redirect(url_for("profile", user_id=user_id))
+    return redirect(url_for("profile"))
 
 
 @app.route("/logout")
