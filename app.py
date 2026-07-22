@@ -12,6 +12,24 @@ app = Flask(__name__)
 app.secret_key = os.environ.get("FLASK_SECRET_KEY") or secrets.token_hex(32)
 app.config["MAX_CONTENT_LENGTH"] = 16 * 1024 * 1024
 
+
+@app.context_processor
+def inject_current_user_id():
+    username = session.get("username")
+    uid = None
+    if username:
+        try:
+            conn = sqlite3.connect("data/users.db")
+            c = conn.cursor()
+            c.execute("SELECT id FROM users WHERE username = ?", (username,))
+            row = c.fetchone()
+            conn.close()
+            if row:
+                uid = row[0]
+        except Exception:
+            pass
+    return dict(current_user_id=uid)
+
 PASSWORD_SALT = bytes.fromhex(
     "44b494f56b14b7c6875fcac46655720b"
 )
