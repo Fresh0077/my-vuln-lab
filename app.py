@@ -367,6 +367,9 @@ def recharge():
     return redirect(url_for("profile"))
 
 
+ALLOWED_PAGES = {"help", "about", "contact", "terms"}
+
+
 @app.route("/page")
 def dynamic_page():
     name = request.args.get("name", "")
@@ -374,15 +377,12 @@ def dynamic_page():
     page_error = None
 
     if name:
-        path = os.path.join("pages", name)
-        if os.path.isfile(path):
-            with open(path, "r", encoding="utf-8") as f:
-                page_content = f.read()
+        if name not in ALLOWED_PAGES:
+            page_error = "页面不存在"
         else:
-            # 尝试加上 .html 后缀
-            path2 = os.path.join("pages", name + ".html")
-            if os.path.isfile(path2):
-                with open(path2, "r", encoding="utf-8") as f:
+            path = os.path.join("pages", name + ".html")
+            if os.path.isfile(path):
+                with open(path, "r", encoding="utf-8") as f:
                     page_content = f.read()
             else:
                 page_error = "页面不存在"
