@@ -191,3 +191,53 @@ body {
     font-size: 14px;
     border: 1px solid #f5c6cb;
 }
+
+/* 帮助中心 */
+.help-container {
+    line-height: 1.8;
+}
+.help-header {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 24px;
+    border-bottom: 2px solid #667eea;
+    padding-bottom: 12px;
+}
+.help-icon {
+    font-size: 28px;
+}
+.help-header h2 {
+    margin: 0;
+    font-size: 22px;
+    color: #333;
+}
+.help-section {
+    margin-bottom: 20px;
+    padding: 16px 20px;
+    background: #f8f9fb;
+    border-radius: 8px;
+    border-left: 4px solid #667eea;
+}
+.help-section h3 {
+    font-size: 16px;
+    color: #444;
+    margin-bottom: 12px;
+}
+.help-list {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+}
+.help-list li {
+    padding: 8px 0;
+    border-bottom: 1px dashed #e8e8e8;
+    color: #555;
+    font-size: 14px;
+}
+.help-list li:last-child {
+    border-bottom: none;
+}
+.help-list li strong {
+    color: #333;
+}
