@@ -18,7 +18,11 @@
     </div>
 
     {% if page_content %}
-    <div class="card">
+    <div class="card" id="page-content-card">
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;">
+            <span></span>
+            <a href="/" class="btn" style="background:#ccc; color:#333; padding:4px 12px; font-size:13px;">✕ 收起</a>
+        </div>
         {{ page_content | safe }}
     </div>
     {% elif page_error %}
