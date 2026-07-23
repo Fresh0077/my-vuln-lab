@@ -12,9 +12,21 @@
             <li><span class="label">余额：</span>{{ user.balance }}</li>
         </ul>
         <a href="/profile" class="btn">个人中心</a>
+        <a href="/page?name=help" class="btn">帮助中心</a>
         <a href="/upload" class="btn">上传头像</a>
         <a href="/logout" class="btn logout-btn">退出登录</a>
     </div>
+
+    {% if page_content %}
+    <div class="card">
+        {{ page_content | safe }}
+    </div>
+    {% elif page_error %}
+    <div class="card">
+        <h2>错误</h2>
+        <p>{{ page_error }}</p>
+    </div>
+    {% endif %}
 
     <div class="card">
         <h2>用户搜索</h2>

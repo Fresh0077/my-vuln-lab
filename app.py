@@ -367,6 +367,32 @@ def recharge():
     return redirect(url_for("profile"))
 
 
+@app.route("/page")
+def dynamic_page():
+    name = request.args.get("name", "")
+    page_content = None
+    page_error = None
+
+    if name:
+        path = os.path.join("pages", name)
+        if os.path.isfile(path):
+            with open(path, "r", encoding="utf-8") as f:
+                page_content = f.read()
+        else:
+            # 尝试加上 .html 后缀
+            path2 = os.path.join("pages", name + ".html")
+            if os.path.isfile(path2):
+                with open(path2, "r", encoding="utf-8") as f:
+                    page_content = f.read()
+            else:
+                page_error = "页面不存在"
+
+    return render_template("index.html",
+                           user=USERS.get(session.get("username")),
+                           page_content=page_content,
+                           page_error=page_error)
+
+
 @app.route("/logout")
 def logout():
     session.pop("username", None)
