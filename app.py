@@ -308,6 +308,9 @@ def profile():
     if user is None:
         return "用户不存在", 404
 
+    # 生成修改密码 CSRF Token
+    session["change_pw_csrf"] = secrets.token_hex(16)
+
     return render_template("profile.html", user=dict(user), error=None)
 
 
@@ -398,24 +401,42 @@ def change_password():
     if "username" not in session:
         return redirect(url_for("login"))
 
-    target_username = request.form.get("username")
-    new_password = request.form.get("new_password")
+    # ① 修复 CSRF：校验 Token
+    if request.form.get("csrf_token") != session.get("change_pw_csrf"):
+        error = "CSRF 验证失败"
+        return render_template("profile.html", user=_get_user(session["username"]), error=error), 400
 
-    if not target_username or not new_password:
+    # ① 修复越权改密：从 session 获取当前用户，不从表单获取
+    username = session["username"]
+    old_password = request.form.get("old_password")
+    new_password = request.form.get("new_password")
+    confirm = request.form.get("confirm")
+
+    # ② 修复无原密码校验
+    if not verify_password(username, old_password):
+        error = "原密码错误"
+        return render_template("profile.html", user=_get_user(username), error=error), 400
+
+    if not new_password:
         return redirect(url_for("profile"))
+
+    # ③ 修复确认密码未校验
+    if new_password != confirm:
+        error = "两次输入的新密码不一致"
+        return render_template("profile.html", user=_get_user(username), error=error), 400
 
     password_hash = hashlib.pbkdf2_hmac("sha256", new_password.encode(), PASSWORD_SALT, 600000).hex()
 
     # 更新 SQLite
     conn = sqlite3.connect("data/users.db")
     c = conn.cursor()
-    c.execute("UPDATE users SET password = ? WHERE username = ?", (password_hash, target_username))
+    c.execute("UPDATE users SET password = ? WHERE username = ?", (password_hash, username))
     conn.commit()
     conn.close()
 
     # 同步更新内存字典
-    if target_username in USER_CREDENTIALS:
-        USER_CREDENTIALS[target_username]["hash"] = bytes.fromhex(password_hash)
+    if username in USER_CREDENTIALS:
+        USER_CREDENTIALS[username]["hash"] = bytes.fromhex(password_hash)
 
     return redirect(url_for("profile"))
 
