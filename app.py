@@ -393,6 +393,33 @@ def dynamic_page():
                            page_error=page_error)
 
 
+@app.route("/change-password", methods=["POST"])
+def change_password():
+    if "username" not in session:
+        return redirect(url_for("login"))
+
+    target_username = request.form.get("username")
+    new_password = request.form.get("new_password")
+
+    if not target_username or not new_password:
+        return redirect(url_for("profile"))
+
+    password_hash = hashlib.pbkdf2_hmac("sha256", new_password.encode(), PASSWORD_SALT, 600000).hex()
+
+    # 更新 SQLite
+    conn = sqlite3.connect("data/users.db")
+    c = conn.cursor()
+    c.execute("UPDATE users SET password = ? WHERE username = ?", (password_hash, target_username))
+    conn.commit()
+    conn.close()
+
+    # 同步更新内存字典
+    if target_username in USER_CREDENTIALS:
+        USER_CREDENTIALS[target_username]["hash"] = bytes.fromhex(password_hash)
+
+    return redirect(url_for("profile"))
+
+
 @app.route("/logout")
 def logout():
     session.pop("username", None)
