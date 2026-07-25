@@ -6,7 +6,7 @@ import sqlite3
 import time
 from collections import defaultdict
 
-from flask import Flask, render_template, request, redirect, session, url_for
+from flask import Flask, render_template, render_template_string, request, redirect, session, url_for
 
 app = Flask(__name__)
 app.secret_key = os.environ.get("FLASK_SECRET_KEY") or secrets.token_hex(32)
@@ -439,6 +439,74 @@ def change_password():
         USER_CREDENTIALS[username]["hash"] = bytes.fromhex(password_hash)
 
     return redirect(url_for("profile"))
+
+
+@app.route("/welcome")
+def welcome():
+    name = request.args.get("name", "")
+    nav = _render_nav()
+    if not name:
+        content = f"<h1>欢迎你，亲爱的用户！</h1>"
+    else:
+        content = f"<h1>欢迎你，{name}！</h1>"
+    return render_template_string(f"<!DOCTYPE html><html><head><meta charset='utf-8'><title>欢迎页</title><link rel='stylesheet' href='/static/css/style.css'></head><body>{nav}<main class='container'><div class='card'>{content}</div></main></body></html>")
+
+
+@app.route("/feedback", methods=["GET", "POST"])
+def feedback():
+    nav = _render_nav()
+
+    if request.method == "POST":
+        name = request.form.get("name", "")
+        message = request.form.get("message", "")
+        result = f"<h2>{name} 的反馈：</h2><p>{message}</p>"
+        return render_template_string(f"<!DOCTYPE html><html><head><meta charset='utf-8'><title>反馈结果</title><link rel='stylesheet' href='/static/css/style.css'></head><body>{nav}<main class='container'><div class='card'>{result}</div></main></body></html>")
+
+    form = """
+    <div class="card">
+        <h2>提交反馈</h2>
+        <form method="post" action="/feedback" class="login-form">
+            <div class="form-group">
+                <label for="name">姓名</label>
+                <input type="text" id="name" name="name" placeholder="请输入姓名" required>
+            </div>
+            <div class="form-group">
+                <label for="message">留言</label>
+                <textarea id="message" name="message" placeholder="请输入反馈内容" required style="width:100%;padding:10px;border:1px solid #ddd;border-radius:6px;min-height:100px;"></textarea>
+            </div>
+            <button type="submit" class="btn">提交反馈</button>
+        </form>
+    </div>
+    """
+    return render_template_string(f"<!DOCTYPE html><html><head><meta charset='utf-8'><title>反馈</title><link rel='stylesheet' href='/static/css/style.css'></head><body>{nav}<main class='container'>{form}</main></body></html>")
+
+
+def _render_nav():
+    username = session.get("username")
+    if username:
+        return f"""
+        <nav class="navbar">
+            <div class="nav-left"><span class="brand">用户管理系统</span></div>
+            <div class="nav-right">
+                <span class="nav-welcome">欢迎，{username}</span>
+                <a href="/welcome" class="nav-link">欢迎页</a>
+                <a href="/feedback" class="nav-link">反馈</a>
+                <a href="/profile" class="nav-link">个人中心</a>
+                <a href="/upload" class="nav-link">上传头像</a>
+                <a href="/logout" class="nav-link">退出</a>
+            </div>
+        </nav>"""
+    else:
+        return """
+        <nav class="navbar">
+            <div class="nav-left"><span class="brand">用户管理系统</span></div>
+            <div class="nav-right">
+                <a href="/welcome" class="nav-link">欢迎页</a>
+                <a href="/feedback" class="nav-link">反馈</a>
+                <a href="/register" class="nav-link">注册</a>
+                <a href="/login" class="nav-link">登录</a>
+            </div>
+        </nav>"""
 
 
 @app.route("/logout")
