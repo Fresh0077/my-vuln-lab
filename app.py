@@ -444,12 +444,16 @@ def change_password():
 @app.route("/welcome")
 def welcome():
     name = request.args.get("name", "")
-    nav = _render_nav()
     if not name:
-        content = f"<h1>欢迎你，亲爱的用户！</h1>"
-    else:
-        content = f"<h1>欢迎你，{name}！</h1>"
-    return render_template_string(f"<!DOCTYPE html><html><head><meta charset='utf-8'><title>欢迎页</title><link rel='stylesheet' href='/static/css/style.css'></head><body>{nav}<main class='container'><div class='card'>{content}</div></main></body></html>")
+        name = "亲爱的用户"
+    nav = _render_nav()
+    return render_template_string(
+        "<!DOCTYPE html><html><head><meta charset='utf-8'><title>欢迎页</title>"
+        "<link rel='stylesheet' href='/static/css/style.css'></head>"
+        "<body>{{ nav|safe }}<main class='container'><div class='card'>"
+        "<h1>欢迎你，{{ name }}！</h1></div></main></body></html>",
+        nav=nav, name=name
+    )
 
 
 @app.route("/feedback", methods=["GET", "POST"])
@@ -459,8 +463,13 @@ def feedback():
     if request.method == "POST":
         name = request.form.get("name", "")
         message = request.form.get("message", "")
-        result = f"<h2>{name} 的反馈：</h2><p>{message}</p>"
-        return render_template_string(f"<!DOCTYPE html><html><head><meta charset='utf-8'><title>反馈结果</title><link rel='stylesheet' href='/static/css/style.css'></head><body>{nav}<main class='container'><div class='card'>{result}</div></main></body></html>")
+        return render_template_string(
+            "<!DOCTYPE html><html><head><meta charset='utf-8'><title>反馈结果</title>"
+            "<link rel='stylesheet' href='/static/css/style.css'></head>"
+            "<body>{{ nav|safe }}<main class='container'><div class='card'>"
+            "<h2>{{ name }} 的反馈：</h2><p>{{ message }}</p></div></main></body></html>",
+            nav=nav, name=name, message=message
+        )
 
     form = """
     <div class="card">
@@ -478,35 +487,40 @@ def feedback():
         </form>
     </div>
     """
-    return render_template_string(f"<!DOCTYPE html><html><head><meta charset='utf-8'><title>反馈</title><link rel='stylesheet' href='/static/css/style.css'></head><body>{nav}<main class='container'>{form}</main></body></html>")
+    return render_template_string(
+        "<!DOCTYPE html><html><head><meta charset='utf-8'><title>反馈</title>"
+        "<link rel='stylesheet' href='/static/css/style.css'></head>"
+        "<body>{{ nav|safe }}<main class='container'>{{ form|safe }}</main></body></html>",
+        nav=nav, form=form
+    )
 
 
 def _render_nav():
     username = session.get("username")
     if username:
-        return f"""
-        <nav class="navbar">
-            <div class="nav-left"><span class="brand">用户管理系统</span></div>
-            <div class="nav-right">
-                <span class="nav-welcome">欢迎，{username}</span>
-                <a href="/welcome" class="nav-link">欢迎页</a>
-                <a href="/feedback" class="nav-link">反馈</a>
-                <a href="/profile" class="nav-link">个人中心</a>
-                <a href="/upload" class="nav-link">上传头像</a>
-                <a href="/logout" class="nav-link">退出</a>
-            </div>
-        </nav>"""
+        return (
+            '<nav class="navbar">'
+            '<div class="nav-left"><span class="brand">用户管理系统</span></div>'
+            '<div class="nav-right">'
+            f'<span class="nav-welcome">欢迎，{username}</span>'
+            '<a href="/welcome" class="nav-link">欢迎页</a>'
+            '<a href="/feedback" class="nav-link">反馈</a>'
+            '<a href="/profile" class="nav-link">个人中心</a>'
+            '<a href="/upload" class="nav-link">上传头像</a>'
+            '<a href="/logout" class="nav-link">退出</a>'
+            '</div></nav>'
+        )
     else:
-        return """
-        <nav class="navbar">
-            <div class="nav-left"><span class="brand">用户管理系统</span></div>
-            <div class="nav-right">
-                <a href="/welcome" class="nav-link">欢迎页</a>
-                <a href="/feedback" class="nav-link">反馈</a>
-                <a href="/register" class="nav-link">注册</a>
-                <a href="/login" class="nav-link">登录</a>
-            </div>
-        </nav>"""
+        return (
+            '<nav class="navbar">'
+            '<div class="nav-left"><span class="brand">用户管理系统</span></div>'
+            '<div class="nav-right">'
+            '<a href="/welcome" class="nav-link">欢迎页</a>'
+            '<a href="/feedback" class="nav-link">反馈</a>'
+            '<a href="/register" class="nav-link">注册</a>'
+            '<a href="/login" class="nav-link">登录</a>'
+            '</div></nav>'
+        )
 
 
 @app.route("/logout")
