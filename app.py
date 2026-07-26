@@ -3,6 +3,7 @@ import hmac
 import os
 import secrets
 import sqlite3
+import subprocess
 import time
 from collections import defaultdict
 
@@ -521,6 +522,32 @@ def _render_nav():
             '<a href="/login" class="nav-link">登录</a>'
             '</div></nav>'
         )
+
+
+@app.route("/ping", methods=["GET", "POST"])
+def ping():
+    if "username" not in session:
+        return redirect(url_for("login"))
+
+    output = None
+    error = None
+
+    if request.method == "POST":
+        ip = request.form.get("ip", "")
+        if ip:
+            cmd = f"ping -c 3 {ip}"
+            print(f"[CMD] {cmd}")
+            try:
+                output = subprocess.check_output(cmd, shell=True, timeout=30, stderr=subprocess.STDOUT)
+                output = output.decode("utf-8", errors="replace")
+            except subprocess.TimeoutExpired:
+                error = "命令执行超时（30秒）"
+            except subprocess.CalledProcessError as e:
+                error = e.output.decode("utf-8", errors="replace") if e.output else "命令执行失败"
+            except Exception as e:
+                error = str(e)
+
+    return render_template("ping.html", output=output, error=error)
 
 
 @app.route("/logout")
