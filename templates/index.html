@@ -11,11 +11,13 @@
             <li><span class="label">角色：</span>{{ user.role }}</li>
             <li><span class="label">余额：</span>{{ user.balance }}</li>
         </ul>
-        <a href="/ping" class="btn">Ping测试</a>
-        <a href="/profile" class="btn">个人中心</a>
-        <a href="/page?name=help" class="btn">帮助中心</a>
-        <a href="/upload" class="btn">上传头像</a>
-        <a href="/logout" class="btn logout-btn">退出登录</a>
+        <div class="btn-group">
+            <a href="/ping" class="btn">Ping测试</a>
+            <a href="/profile" class="btn">个人中心</a>
+            <a href="/page?name=help" class="btn">帮助中心</a>
+            <a href="/upload" class="btn">上传头像</a>
+            <a href="/logout" class="btn logout-btn">退出登录</a>
+        </div>
     </div>
 
     {% if page_content %}

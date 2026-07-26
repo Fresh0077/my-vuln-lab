@@ -170,6 +170,15 @@ body {
     background: #c0392b;
 }
 
+/* 按钮组 */
+.btn-group {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+    margin-top: 10px;
+}
+}
+
 /* 成功提示 */
 .success-msg {
     background: #efe;
