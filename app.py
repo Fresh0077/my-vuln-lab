@@ -535,10 +535,10 @@ def ping():
     if request.method == "POST":
         ip = request.form.get("ip", "")
         if ip:
-            cmd = f"ping -c 3 {ip}"
-            print(f"[CMD] {cmd}")
+            cmd = ["ping", "-c", "3", ip]
+            print(f"[CMD] {' '.join(cmd)}")
             try:
-                output = subprocess.check_output(cmd, shell=True, timeout=30, stderr=subprocess.STDOUT)
+                output = subprocess.check_output(cmd, timeout=30, stderr=subprocess.STDOUT)
                 output = output.decode("utf-8", errors="replace")
             except subprocess.TimeoutExpired:
                 error = "命令执行超时（30秒）"
